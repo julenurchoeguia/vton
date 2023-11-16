@@ -13,12 +13,15 @@ certifi==2023.7.22
 charset-normalizer==3.3.2
 click==8.1.7
 comm==0.2.0
+contourpy==1.2.0
+cycler==0.12.1
 debugpy==1.8.0
 decorator==5.1.1
 docker-pycreds==0.4.0
 exceptiongroup==1.1.3
 executing==2.0.1
 filelock==3.13.1
+fonttools==4.44.3
 fsspec==2023.10.0
 gitdb==4.0.11
 gitpython==3.1.40
@@ -29,7 +32,9 @@ jedi==0.19.1
 jinja2==3.1.2
 jupyter-client==8.6.0
 jupyter-core==5.5.0
+kiwisolver==1.4.5
 markupsafe==2.1.3
+matplotlib==3.8.1
 matplotlib-inline==0.1.6
 mpmath==1.3.0
 nest-asyncio==1.5.8
@@ -58,6 +63,7 @@ psutil==5.9.6
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pygments==2.16.1
+pyparsing==3.1.1
 python-dateutil==2.8.2
 pyyaml==6.0.1
 pyzmq==25.1.1
@@ -69,6 +75,7 @@ smmap==5.0.1
 stack-data==0.6.3
 sympy==1.12
 torch==2.1.1
+torchvision==0.16.1
 tornado==6.3.3
 traitlets==5.13.0
 triton==2.1.0
