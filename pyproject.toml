@@ -1,0 +1,27 @@
+[project]
+name = "vton"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Julen Urchoeguia", email = "julen.urchoeguia@gmail.com" }
+]
+dependencies = [
+    "torch>=2.1.1",
+    "pillow>=10.1.0",
+    "numpy>=1.24.4",
+    "wandb>=0.16.0",
+    "ipykernel>=6.26.0",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
