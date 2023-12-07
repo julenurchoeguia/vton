@@ -163,3 +163,4 @@ cython_debug/
 data
 laure/wandb
 julen/wandb
+laure_f/data_cats_vs_dogs/
