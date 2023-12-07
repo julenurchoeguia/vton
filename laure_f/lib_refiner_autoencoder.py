@@ -130,13 +130,13 @@ class Encoder(fl.Chain):
             MaxPool2d(2),
             Resblock(128, 256),
             MaxPool2d(2),
-            fl.Conv2d(256, 4, 1, padding=0),
+            fl.Conv2d(256, 8, 1, padding=0),
         )
 
 class Decoder(fl.Chain):
     def __init__(self, output_channels: int = 3):
         super().__init__(
-            fl.Conv2d(4, 256, 1, padding=0),
+            fl.Conv2d(8, 256, 1, padding=0),
             Resblock(256, 128),
             fl.Upsample(channels=128,upsample_factor=2),
             Resblock(128, 64),
@@ -156,7 +156,7 @@ class AutoEncoder(fl.Chain):
 
 #%% Fonctions
 
-def load_dropout(chain : fl.Chain, dropout : float = 0.5):
+def load_dropout(chain : fl.Chain, dropout : float = 0.05):
     for silu, parent in chain.walk(fl.SiLU):
         DropoutAdapter(silu, dropout).inject(parent)
 
@@ -186,10 +186,10 @@ class ImageDataset:
     def __init__(self, path) -> None:
         self.path = path
         self.image_files = [f for f in os.listdir(path) if f.endswith(('.jpg', '.png', '.jpeg'))]
-        self.data = [self.load_image(file) for file in self.image_files]
+        # self.data = [self.load_image(file) for file in self.image_files]
 
     def __len__(self) -> int:
-        return len(self.data)
+        return len(self.image_files)
 
     def __str__(self) -> str:
         return f'ImageDataset(len={len(self)})'
@@ -198,12 +198,15 @@ class ImageDataset:
         return str(self)
 
     def __getitem__(self, key: int) -> Image.Image:
-        return self.data[key]
+        # return self.data[key]
+        return self.load_image(self.image_files[key])
 
     def load_image(self, file: str) -> Image.Image:
         image_path = os.path.join(self.path, file)
         try:
-            image = Image.open(image_path)
+            # with Image.open(image_path) as image:
+            #     return image
+            image = Image.open(image_path).convert('RGB')
             return image
         except Exception as e:
             print(f"Error loading image '{file}': {e}")
