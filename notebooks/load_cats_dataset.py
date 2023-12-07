@@ -24,7 +24,7 @@ logging.info("Filtering dataset to have only cat photos...")
 dataset = dataset.filter(lambda x: x['labels'] == 0)
 
 # Select subset of the first 10_000 images
-dataset = dataset.select(range(1000))
+# dataset = dataset.select(range(10000))
 
 # Set the path for the output folder
 folder = "data_cats"
@@ -34,9 +34,12 @@ os.makedirs(folder, exist_ok=True)
 logging.info("Saving images...")
 idx=1
 for data_point in tqdm.tqdm(dataset):
-    image = data_point['image']
-    image = resize_image_to_eightdiv_sizes(image)
-    image_filename = f"image_{idx}.png"
-    image_path = os.path.join(folder, image_filename)
-    image.save(image_path)
-    idx+=1
+    try:
+        image = data_point['image']
+        image = resize_image_to_eightdiv_sizes(image)
+        image_filename = f"image_{idx}.png"
+        image_path = os.path.join(folder, image_filename)
+        image.save(image_path)
+        idx+=1
+    except:
+        pass

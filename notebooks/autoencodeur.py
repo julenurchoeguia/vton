@@ -122,13 +122,13 @@ class Encoder(fl.Chain):
             MaxPool2d(2),
             Resblock(128, 256),
             MaxPool2d(2),
-            fl.Conv2d(256, 32, 1, padding=0),
+            fl.Conv2d(256, 16, 1, padding=0),
         )
 
 class Decoder(fl.Chain):
     def __init__(self, output_channels: int = 3):
         super().__init__(
-            fl.Conv2d(32, 256, 1, padding=0),
+            fl.Conv2d(16, 256, 1, padding=0),
             Resblock(256, 128),
             fl.Upsample(channels=128,upsample_factor=2),
             Resblock(128, 64),
