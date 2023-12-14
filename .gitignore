@@ -164,3 +164,7 @@ data
 laure_bis/wandb
 julen/wandb
 laure_bis/data_cats_vs_dogs/
+julen/wandb
+notebooks/models/*
+notebooks/wandb/*
+datasets/*

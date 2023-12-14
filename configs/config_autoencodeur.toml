@@ -1,0 +1,42 @@
+script = "autoencodeur_trainer.py" # not used for now
+
+
+[wandb]
+mode = "offline"
+entity = "finegrain-cs"
+project = "cats"
+name = "test_trainer_refiners"
+
+[models]
+autoencodeur = {checkpoint="/home/daniel/work/vton/notebooks/autoencodeur_models/test.safetensors", train=true}
+
+[training]
+duration = "3:epoch"
+seed = 42
+gpu_index = 0
+num_epochs = 3
+batch_size = 1
+gradient_accumulation = "1:step"
+evaluation_interval = "1:epoch"
+evaluation_seed = 42
+
+
+[optimizer]
+optimizer = "Adam" # "AdamW", "AdamW8bit", "Lion8bit", "Prodigy", "SGD", "Adam"
+learning_rate = 1e-4
+
+
+[scheduler]
+scheduler_type = "ConstantLR"
+update_interval = "1:step"
+
+[dropout]
+dropout_probability = 0.1
+
+[dataset]
+path = "/home/daniel/work/vton/notebooks/data_cats"
+
+[checkpointing]
+# save_folder = "/path/to/ckpts"
+save_interval = "1:epoch"
+
