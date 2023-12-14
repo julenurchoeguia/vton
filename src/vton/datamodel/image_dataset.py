@@ -1,15 +1,9 @@
-import torch
-from torch import nn
+from dataclasses import dataclass
+from torch import Tensor
 from PIL import Image
 import os
 from torch.utils.data import Dataset
-from refiners.fluxion import layers as fl
-from refiners.fluxion.adapters.adapter import Adapter
-from refiners.fluxion.context import Contexts
-from refiners.training_utils.trainer import Trainer
-from typing import TypeVar
-from refiners.training_utils.config import BaseConfig
-
+from refiners.fluxion.utils import image_to_tensor
 
 
 class Dataset:
@@ -33,6 +27,11 @@ class Dataset:
             case _:
                 return self.data[key]
             
+        
+@dataclass
+class AutoEncoderBatch:
+    image : Tensor
+            
 class ImageDataset(Dataset):
     def __init__(self, path) -> None:
         self.path = path
@@ -55,6 +54,7 @@ class ImageDataset(Dataset):
         image_path = os.path.join(self.path, file)
         try:
             image = Image.open(image_path).convert("RGB")
+            image = image_to_tensor(image).squeeze(0)
             return image
         except Exception as e:
             print(f"Error loading image '{file}': {e}")

@@ -1,14 +1,7 @@
-import torch
 from torch import nn
-from PIL import Image
-import os
-from torch.utils.data import Dataset
 from refiners.fluxion import layers as fl
 from refiners.fluxion.adapters.adapter import Adapter
-from refiners.fluxion.context import Contexts
-from refiners.training_utils.trainer import Trainer
-from typing import TypeVar
-from refiners.training_utils.config import BaseConfig
+
 
 
 #%% Resblock
@@ -91,3 +84,7 @@ def load_dropout(chain : fl.Chain, dropout : float = 0.5):
     for silu, parent in chain.walk(fl.SiLU):
         DropoutAdapter(silu, dropout).inject(parent)
 
+
+if __name__ == "__main__":
+    autoencoder = AutoEncoder().to("cuda")
+    print(autoencoder.device)

@@ -1,73 +1,78 @@
-import torch
-from torch import nn
+from dataclasses import dataclass
+from functools import cached_property
+from torch import Tensor
 from PIL import Image
-import os
-from torch.utils.data import Dataset
+import numpy as np
+import PIL
+
+from torch.nn.functional import mse_loss
+
 from refiners.fluxion import layers as fl
-from refiners.fluxion.adapters.adapter import Adapter
-from refiners.fluxion.context import Contexts
-from refiners.training_utils.trainer import Trainer
-from typing import TypeVar
+from refiners.training_utils.trainer import (
+    Trainer,
+    seed_everything
+)
+from refiners.fluxion.utils import tensor_to_image
 from refiners.training_utils.config import BaseConfig
+from vton.model.autoencodeur import AutoEncoder
+from vton.datamodel.image_dataset import AutoEncoderBatch, ImageDataset
 
+seed = 42
+seed_everything(seed)
 
-ConfigType = TypeVar("ConfigType", bound=BaseConfig)
+class AutoEncoderConfig(BaseConfig):
+    path_dataset_train : str
+    path_dataset_test : str
+    path_dataset_val : str
 
-class AutoEncoderTrainer(Trainer[ConfigType]):
+class AutoEncoderTrainer(Trainer[AutoEncoderConfig, AutoEncoderBatch]):
+
+    @cached_property # pour ne pas loader autoencoder à chaque fois
+    def autoencoder(self):
+        return AutoEncoder().to(device=self.device)
 
     def load_models(self) -> dict[str, fl.Module]:
-        return {"autoencodeur": self.autoencodeur}
+        return {"autoencoder": self.autoencoder}
 
-    def load_dataset(self) -> Dataset[TextEmbeddingLatentsBatch]:
-        return ImageDataset(self.config.dataset.path)
+    def load_dataset(self):
+        dataset_train =  ImageDataset(self.config.path_dataset_train)
+        return dataset_train
+    
+    # def load_dataset_test(self):
+    #     dataset_test = ImageDataset(self.config.path_dataset_test)
+    #     return dataset_test
 
-
-    def sample_timestep(self) -> Tensor:
-        random_step = random.randint(a=self.config.latent_diffusion.min_step, b=self.config.latent_diffusion.max_step)
-        self.current_step = random_step
-        return self.ddpm_scheduler.timesteps[random_step].unsqueeze(dim=0)
-
-    def sample_noise(self, size: tuple[int, ...], dtype: DType | None = None) -> Tensor:
-        return sample_noise(
-            size=size, offset_noise=self.config.latent_diffusion.offset_noise, device=self.device, dtype=dtype
-        )
-
-    def compute_loss(self, batch: TextEmbeddingLatentsBatch) -> Tensor:
-        clip_text_embedding, latents = batch.text_embeddings, batch.latents
-        timestep = self.sample_timestep()
-        noise = self.sample_noise(size=latents.shape, dtype=latents.dtype)
-        noisy_latents = self.ddpm_scheduler.add_noise(x=latents, noise=noise, step=self.current_step)
-        self.unet.set_timestep(timestep=timestep)
-        self.unet.set_clip_text_embedding(clip_text_embedding=clip_text_embedding)
-        prediction = self.unet(noisy_latents)
-        loss = mse_loss(input=prediction, target=noise)
+    def compute_loss(self, batch: AutoEncoderBatch) -> Tensor:
+        image = batch.to(device=self.device)
+        prediction = self.autoencoder(image)
+        loss = mse_loss(prediction,image)
         return loss
-
+    
     def compute_evaluation(self) -> None:
-        sd = StableDiffusion_1(
-            unet=self.unet,
-            lda=self.lda,
-            clip_text_encoder=self.text_encoder,
-            scheduler=DPMSolver(num_inference_steps=self.config.test_diffusion.num_inference_steps),
-            device=self.device,
-        )
-        prompts = self.config.test_diffusion.prompts
-        num_images_per_prompt = self.config.test_diffusion.num_images_per_prompt
-        if self.config.test_diffusion.use_short_prompts:
-            prompts = [prompt.split(sep=",")[0] for prompt in prompts]
-        images: dict[str, WandbLoggable] = {}
-        for prompt in prompts:
-            canvas_image: Image.Image = Image.new(mode="RGB", size=(512, 512 * num_images_per_prompt))
-            for i in range(num_images_per_prompt):
-                logger.info(f"Generating image {i+1}/{num_images_per_prompt} for prompt: {prompt}")
-                x = randn(1, 4, 64, 64, device=self.device)
-                clip_text_embedding = sd.compute_clip_text_embedding(text=prompt).to(device=self.device)
-                for step in sd.steps:
-                    x = sd(
-                        x,
-                        step=step,
-                        clip_text_embedding=clip_text_embedding,
-                    )
-                canvas_image.paste(sd.lda.decode_latents(x=x), box=(0, 512 * i))
-            images[prompt] = canvas_image
-        self.log(data=images)
+        loss_val = 0
+        reconstructed_images = []
+
+        dataset_val = ImageDataset(self.config.path_dataset_val)
+
+        for k, image in enumerate(dataset_val):
+            image = image.unsqueeze(0)
+            image = image.to(device=self.device)
+            prediction = self.autoencoder(image)
+            loss = mse_loss(prediction,image)
+            loss_val += loss
+        
+            if k < 5:
+                image_shape = image.shape
+                concat = Image.new('RGB', (image_shape[-1]*2, image_shape[-2]))
+                concat.paste(tensor_to_image(image.data), (0, 0))
+                concat.paste(tensor_to_image(prediction.data), (image_shape[-1], 0))
+                reconstructed_images.append(concat)
+
+        images = [PIL.Image.fromarray(np.array(image)) for image in reconstructed_images]
+        # print(len(images))
+        i = 0
+        for image in images:
+            self.log({f"reconstructed_images_" + str(i): image})
+            i += 1
+        self.log({'val_loss': (loss_val / len(dataset_val)).item()})
+

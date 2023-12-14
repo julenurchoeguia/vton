@@ -1,14 +1,16 @@
 script = "autoencodeur_trainer.py" # not used for now
-
+path_dataset_train = "datasets/data_cats_vs_dogs/data_train"
+path_dataset_test = "datasets/data_cats_vs_dogs/data_test"
+path_dataset_val = "datasets/data_cats_vs_dogs/data_val"
 
 [wandb]
-mode = "offline"
+mode = "offline"  # online : enregistrer le test sur wandb, offline : ne pas enregistrer le test sur wandb
 entity = "finegrain-cs"
 project = "cats"
-name = "test_trainer_refiners"
+name = "test_trainer_refiners_2"
 
 [models]
-autoencodeur = {checkpoint="/home/daniel/work/vton/notebooks/autoencodeur_models/test.safetensors", train=true}
+autoencoder = {train = true}#{checkpoint="/home/daniel/work/vton/notebooks/autoencodeur_models/test.safetensors", train=true}
 
 [training]
 duration = "3:epoch"
@@ -33,8 +35,9 @@ update_interval = "1:step"
 [dropout]
 dropout_probability = 0.1
 
+
 [dataset]
-path = "/home/daniel/work/vton/notebooks/data_cats"
+# on a besoin de le laisser à cause du model BaseConfig
 
 [checkpointing]
 # save_folder = "/path/to/ckpts"
