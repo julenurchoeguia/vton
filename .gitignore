@@ -161,6 +161,6 @@ cython_debug/
 
 #dataset
 data
-laure_f/wandb
+laure_bis/wandb
 julen/wandb
-laure_f/data_cats_vs_dogs/
+laure_bis/data_cats_vs_dogs/
