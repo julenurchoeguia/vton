@@ -14,8 +14,8 @@ from refiners.training_utils.trainer import (
 )
 from refiners.fluxion.utils import tensor_to_image
 from refiners.training_utils.config import BaseConfig
-from vton.model.autoencodeur import AutoEncoder
-from vton.datamodel.image_dataset import AutoEncoderBatch, ImageDataset
+from autoencodeur import AutoEncoder
+from image_dataset import AutoEncoderBatch, ImageDataset
 
 seed = 42
 seed_everything(seed)

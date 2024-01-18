@@ -163,3 +163,4 @@ notebooks/models/*
 notebooks/wandb/*
 datasets/*
 .vscode/*
+wandb/*
