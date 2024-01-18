@@ -17,18 +17,21 @@ def resize_image_to_eightdiv_sizes(image):
 
 # Load the dataset
 logging.info("Loading dataset...")
-dataset = load_dataset("cats_vs_dogs",split="train")
+dataset = load_dataset("cats_vs_dogs", split="train")
 
 # Apply a filter to keep only cats using label 0
 logging.info("Filtering dataset to have only cat photos...")
 dataset = dataset.filter(lambda x: x['labels'] == 0)
+logging.info(f"Dataset size: {len(dataset)}")
 
 # Select subset of the first 10_000 images
 # dataset = dataset.select(range(10000))
 
 # Set the path for the output folder
-folder = "data_cats"
+folder = "datasets/data_cats"
 os.makedirs(folder, exist_ok=True)
+for split in ["train", "val", "test"]:
+    os.makedirs(os.path.join(folder, split), exist_ok=True)
 
 # Iterate through the datasets and save images
 logging.info("Saving images...")
@@ -38,8 +41,15 @@ for data_point in tqdm.tqdm(dataset):
         image = data_point['image']
         image = resize_image_to_eightdiv_sizes(image)
         image_filename = f"image_{idx}.png"
-        image_path = os.path.join(folder, image_filename)
+        if idx < int(len(dataset) * 0.7):
+            image_path = os.path.join(folder + "/train", image_filename)
+        elif idx < int(len(dataset) * 0.9):
+            image_path = os.path.join(folder + "/val", image_filename)
+        else:
+            image_path = os.path.join(folder + "/test", image_filename)
         image.save(image_path)
         idx+=1
-    except:
+    except Exception as e:
+        logging.error(f"Error while saving image: {e}")
         pass
+
