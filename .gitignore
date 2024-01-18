@@ -162,5 +162,5 @@ cython_debug/
 notebooks/models/*
 notebooks/wandb/*
 datasets/*
-#.vscode/*
+.vscode/*
 wandb/*
