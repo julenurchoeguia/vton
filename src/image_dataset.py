@@ -40,6 +40,10 @@ class Dataset:
 @dataclass
 class AutoEncoderBatch:
     image : Tensor
+
+@dataclass
+class VAEBatch:
+    image : Tensor
             
 class ImageDataset(Dataset):
     def __init__(self, path) -> None:
