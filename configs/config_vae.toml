@@ -1,19 +1,19 @@
-script = "autoencodeur_trainer.py" # not used for now
+script = "vae_trainer.py" # not used for now
 path_dataset_train = "/var/hub/datasets/zalando-hd-resized/train/image"
 path_dataset_test = "/var/hub/datasets/zalando-hd-resized/test/image"
-path_dataset_val = "/var/hub/datasets/zalando-hd-resized/test/image"
+path_dataset_val = "/var/hub/datasets/zalando-hd-resized/val/image"
 
 [wandb]
 mode = "online"  # online : enregistrer le test sur wandb, offline : ne pas enregistrer le test sur wandb
 entity = "finegrain-cs"
 project = "vton_details_preservation"
-name = "autoencodeur_vton_test1"    
+name = "vae_32_latent_dim"    
 
 [models]
-autoencoder = {train = true}#{checkpoint="/home/daniel/work/vton/notebooks/autoencodeur_models/test.safetensors", train=true}
+vae = {train = true}#{checkpoint="/home/daniel/work/vton/notebooks/autoencodeur_models/test.safetensors", train=true}
 
 [training]
-duration = "10:epoch"
+duration = "20:epoch"
 seed = 42
 gpu_index = 0
 num_epochs = 20
@@ -40,6 +40,6 @@ dropout_probability = 0.1
 # on a besoin de le laisser à cause du model BaseConfig
 
 [checkpointing]
-save_folder = "notebooks/models/autoencodeur_vton"
+save_folder = "models"
 save_interval = "1:epoch"
 

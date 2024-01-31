@@ -14,7 +14,7 @@ from refiners.training_utils.trainer import (
 )
 from refiners.fluxion.utils import tensor_to_image
 from refiners.training_utils.config import BaseConfig
-from autoencodeur import AutoEncoder
+from autoencoder import AutoEncoder
 from image_dataset import AutoEncoderBatch, ImageDataset
 
 seed = 42
