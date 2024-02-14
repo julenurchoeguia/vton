@@ -24,7 +24,7 @@ https://github.com/megvii-research/NAFNet/blob/main/basicsr/models/archs/NAFNet_
 
 """
 
-class SimpleGate(nn.Module):
+class SimpleGate(fl.Module):
     def forward(self, x):
         x1, x2 = x.chunk(2, dim=1)
         # the .chunk() method splits a tensor into a specified number of chunks along a given dimension
@@ -34,7 +34,7 @@ class SimplifiedChannelAttention(fl.Module):
     def __init__(self, c, DW_Expand = 2) -> None:
         super().__init__(
             AdaptiveAvgPool2d(1),
-            fl.Conv2d(in_channels=(c*DW_Expand)//2, out_channels=(c*DW_Expand)//2, kernel_size=1, padding=0, stride=1, groups=1, bias=True),
+            fl.Conv2d(in_channels=(c*DW_Expand)//2, out_channels=(c*DW_Expand)//2, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
         )
 
 class CustomConditionedDropout(fl.Module):
@@ -43,9 +43,9 @@ class CustomConditionedDropout(fl.Module):
         self.drop_out_rate = drop_out_rate
     def forward(self, x):
         if self.drop_out_rate > 0.:
-            x = fl.Dropout(x)
+            x = Dropout(x)
         else :
-            x = fl.Identity(x)
+            x = fl.Identity()
         return x
 
 class MultiplyLayers(fl.Module):
@@ -60,22 +60,22 @@ class NAFBlock(fl.Chain):
             # x = self.norm1(x)
             # LayerNorm2d(c),
 
-            fl.Conv2d(in_channels=c, out_channels=c*DW_Expand, kernel_size=1, padding=0, stride=1, groups=1, bias=True),
-            fl.Conv2d(in_channels=c*DW_Expand, out_channels=c*DW_Expand, kernel_size=3, padding=1, stride=1, groups=c*DW_Expand, bias=True),
+            fl.Conv2d(in_channels=c, out_channels=c*DW_Expand, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
+            fl.Conv2d(in_channels=c*DW_Expand, out_channels=c*DW_Expand, kernel_size=3, padding=1, stride=1, groups=c*DW_Expand, use_bias=True),
             SimpleGate(),
 
             # x = x * self.sca(x) (sca : simplified channel attention)
             # try with fl.Matmul() ? cf chain.py in refiners repo
             # MultiplyLayers(SimplifiedChannelAttention(c, DW_Expand)) ??
 
-            fl.Conv2d(in_channels=(c*DW_Expand)//2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True),
+            fl.Conv2d(in_channels=(c*DW_Expand)//2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
             Dropout(drop_out_rate) if drop_out_rate > 0. else fl.Identity(),
 
             # TODO :  y = inp + x * self.beta
             #         x = self.conv4(self.norm2(y))
 
             SimpleGate(),
-            fl.Conv2d(in_channels=FFN_Expand*c, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True),
+            fl.Conv2d(in_channels=FFN_Expand*c, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
             Dropout(drop_out_rate) if drop_out_rate > 0. else fl.Identity(),
 
             # TODO : return y + x * self.gamma

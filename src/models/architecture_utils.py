@@ -15,8 +15,12 @@ TODO :
 """
 
 class AdaptiveAvgPool2d(fl.Module):
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return nn.AdaptiveAvgPool2d(x, dim=0)
+    def forward(self, x):
+        return nn.AdaptiveAvgPool2d(x)
+    
+class AvgPool2d(fl.Module):
+    def forward(self, x):
+        return nn.AvgPool2d(x)
 
 class Resblock(fl.Sum):
     def __init__(self, in_channels: int=1, out_channels: int=1) -> None:
@@ -144,11 +148,11 @@ class LayerNorm2d(nn.Module):
         return LayerNormFunction.apply(x, self.weight, self.bias, self.eps)
 
 
-class AvgPool2d(nn.Module):
+class AvgPool2d_article(nn.Module):
     def __init__(self, kernel_size=None, base_size=None, auto_pad=True, fast_imp=False, train_size=None):
         super().__init__()
-        self.kernel_size = kernel_size
-        self.base_size = base_size
+        self.kernel_siz= kernel_size
+        self.base_siz = base_size
         self.auto_pad = auto_pad
 
         # only used for fast implementation
@@ -219,7 +223,7 @@ def replace_layers(model, base_size, train_size, fast_imp, **kwargs):
             replace_layers(m, base_size, train_size, fast_imp, **kwargs)
 
         if isinstance(m, AdaptiveAvgPool2d):
-            pool = AvgPool2d(base_size=base_size, fast_imp=fast_imp, train_size=train_size)
+            pool = AvgPool2d_article(base_size=base_size, fast_imp=fast_imp, train_size=train_size)
             assert m.output_size == 1
             setattr(model, n, pool)
 
