@@ -1,5 +1,5 @@
 import torch
-from autoencoder_trainer import AutoEncoderConfig, AutoEncoderTrainer
+from trainer.autoencoder_trainer import AutoEncoderConfig, AutoEncoderTrainer
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

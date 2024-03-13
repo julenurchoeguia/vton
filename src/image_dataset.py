@@ -1,19 +1,21 @@
-from dataclasses import dataclass
+### External imports ###
 from torch import Tensor
 from PIL import Image
 import os
-from torch.utils.data import Dataset
-from refiners.fluxion.utils import image_to_tensor
+# from torch.utils.data import Dataset
 import json
 from os import path as osp
-
 import numpy as np
 from PIL import Image, ImageDraw
 import torch
 from torch.utils import data
 from torchvision import transforms
 
+### Refiner imports ###
+from refiners.fluxion.utils import image_to_tensor
 
+### Local imports ###
+from dataclasses import dataclass
 
 class Dataset:
     def __init__(self, path) -> None:
@@ -72,9 +74,6 @@ class ImageDataset(Dataset):
         except Exception as e:
             print(f"Error loading image '{file}': {e}")
             return None
-        
-
-
 
 
 class VITONDataset(data.Dataset):
