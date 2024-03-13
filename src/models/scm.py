@@ -1,87 +1,66 @@
-### Python import ###
+# ------------------------------------------------------------------------
+# Copyright (c) 2022 megvii-model. All Rights Reserved.
+# ------------------------------------------------------------------------
+
+'''
+Simple Baselines for Image Restoration
+
+@article{chen2022simple,
+  title={Simple Baselines for Image Restoration},
+  author={Chen, Liangyu and Chu, Xiaojie and Zhang, Xiangyu and Sun, Jian},
+  journal={arXiv preprint arXiv:2204.04676},
+  year={2022}
+}
+'''
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-### Refiner import ###
-from refiners.fluxion import layers as fl
+class LayerNormFunction(torch.autograd.Function):
 
-### Local import ###
-from models.architecture_utils import (
-    LayerNorm2d, # function to rewrite using refiners
-    Local_Base, # function to rewrite using refiners
-    Dropout,
-    AdaptiveAvgPool2d
-)
+    @staticmethod
+    def forward(ctx, x, weight, bias, eps):
+        ctx.eps = eps
+        N, C, H, W = x.size()
+        mu = x.mean(1, keepdim=True)
+        var = (x - mu).pow(2).mean(1, keepdim=True)
+        y = (x - mu) / (var + eps).sqrt()
+        ctx.save_for_backward(y, var, weight)
+        y = weight.view(1, C, 1, 1) * y + bias.view(1, C, 1, 1)
+        return y
 
+    @staticmethod
+    def backward(ctx, grad_output):
+        eps = ctx.eps
 
-"""
-TODO :
-    - Finish to rewrite the NAFBlock class using refiners (cf test_nafnet.ipynb for rewriting in progress)
-    - Rewrite the NAFNet class using refiners
+        N, C, H, W = grad_output.size()
+        y, var, weight = ctx.saved_variables
+        g = grad_output * weight.view(1, C, 1, 1)
+        mean_g = g.mean(dim=1, keepdim=True)
 
-https://github.com/megvii-research/NAFNet/blob/main/basicsr/models/archs/NAFNet_arch.py
+        mean_gy = (g * y).mean(dim=1, keepdim=True)
+        gx = 1. / torch.sqrt(var + eps) * (g - y * mean_gy - mean_g)
+        return gx, (grad_output * y).sum(dim=3).sum(dim=2).sum(dim=0), grad_output.sum(dim=3).sum(dim=2).sum(
+            dim=0), None
 
-"""
+class LayerNorm2d(nn.Module):
 
-class SimpleGate(fl.Module):
+    def __init__(self, channels, eps=1e-6):
+        super(LayerNorm2d, self).__init__()
+        self.register_parameter('weight', nn.Parameter(torch.ones(channels)))
+        self.register_parameter('bias', nn.Parameter(torch.zeros(channels)))
+        self.eps = eps
+
+    def forward(self, x):
+        return LayerNormFunction.apply(x, self.weight, self.bias, self.eps)
+
+class SimpleGate(nn.Module):
     def forward(self, x):
         x1, x2 = x.chunk(2, dim=1)
-        # the .chunk() method splits a tensor into a specified number of chunks along a given dimension
         return x1 * x2
 
-class SimplifiedChannelAttention(fl.Module):
-    def __init__(self, c, DW_Expand = 2) -> None:
-        super().__init__(
-            AdaptiveAvgPool2d(1),
-            fl.Conv2d(in_channels=(c*DW_Expand)//2, out_channels=(c*DW_Expand)//2, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
-        )
-
-class CustomConditionedDropout(fl.Module):
-    def __init__(self, drop_out_rate) -> None:
-        super().__init__()
-        self.drop_out_rate = drop_out_rate
-    def forward(self, x):
-        if self.drop_out_rate > 0.:
-            x = Dropout(x)
-        else :
-            x = fl.Identity()
-        return x
-
-class MultiplyLayers(fl.Module):
-    def forward(self, x, layer):
-        new_x = x * layer(x)
-        return new_x
-
-class NAFBlock(fl.Chain):
-    def __init__(self, c, DW_Expand = 2, FFN_Expand = 2, drop_out_rate = 0.) -> None:
-        super().__init__(
-            # TODO : x = inp
-            # x = self.norm1(x)
-            # LayerNorm2d(c),
-
-            fl.Conv2d(in_channels=c, out_channels=c*DW_Expand, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
-            fl.Conv2d(in_channels=c*DW_Expand, out_channels=c*DW_Expand, kernel_size=3, padding=1, stride=1, groups=c*DW_Expand, use_bias=True),
-            SimpleGate(),
-
-            # x = x * self.sca(x) (sca : simplified channel attention)
-            # try with fl.Matmul() ? cf chain.py in refiners repo
-            # MultiplyLayers(SimplifiedChannelAttention(c, DW_Expand)) ??
-
-            fl.Conv2d(in_channels=(c*DW_Expand)//2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
-            Dropout(drop_out_rate) if drop_out_rate > 0. else fl.Identity(),
-
-            # TODO :  y = inp + x * self.beta
-            #         x = self.conv4(self.norm2(y))
-
-            SimpleGate(),
-            fl.Conv2d(in_channels=FFN_Expand*c, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
-            Dropout(drop_out_rate) if drop_out_rate > 0. else fl.Identity(),
-
-            # TODO : return y + x * self.gamma
-        )
-
-class NAFBlock_debase(nn.Module):
+class NAFBlock(nn.Module):
     def __init__(self, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
         super().__init__()
         dw_channel = c * DW_Expand
@@ -96,6 +75,7 @@ class NAFBlock_debase(nn.Module):
             nn.Conv2d(in_channels=dw_channel // 2, out_channels=dw_channel // 2, kernel_size=1, padding=0, stride=1,
                       groups=1, bias=True),
         )
+
         # SimpleGate
         self.sg = SimpleGate()
 
@@ -114,27 +94,35 @@ class NAFBlock_debase(nn.Module):
 
     def forward(self, inp):
         x = inp
+
         x = self.norm1(x)
+
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.sg(x)
         x = x * self.sca(x)
         x = self.conv3(x)
+
         x = self.dropout1(x)
+
         y = inp + x * self.beta
+
         x = self.conv4(self.norm2(y))
         x = self.sg(x)
         x = self.conv5(x)
+
         x = self.dropout2(x)
+
         return y + x * self.gamma
 
 class NAFNet(nn.Module):
+
     def __init__(self, img_channel=3, width=16, middle_blk_num=1, enc_blk_nums=[], dec_blk_nums=[]):
         super().__init__()
 
         self.intro = nn.Conv2d(in_channels=img_channel, out_channels=width, kernel_size=3, padding=1, stride=1, groups=1,
                               bias=True)
-        self.ending = nn.Conv2d(in_channels=width, out_channels=img_channel, kernel_size=3, padding=1, stride=1, groups=1,
+        self.ending = nn.Conv2d(in_channels=width, out_channels=3, kernel_size=3, padding=1, stride=1, groups=1,
                               bias=True)
 
         self.encoders = nn.ModuleList()
@@ -207,4 +195,33 @@ class NAFNet(nn.Module):
         mod_pad_w = (self.padder_size - w % self.padder_size) % self.padder_size
         x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h))
         return x
+
+class NAFNet_Combine(NAFNet):
+    def forward(self, inp):
+        B, C, H, W = inp.shape
+        inp = self.check_image_size(inp)
+
+        x = self.intro(inp)
+
+        encs = []
+
+        for encoder, down in zip(self.encoders, self.downs):
+            x = encoder(x)
+            encs.append(x)
+            x = down(x)
+
+        x = self.middle_blks(x)
+
+        for decoder, up, enc_skip in zip(self.decoders, self.ups, encs[::-1]):
+            x = up(x)
+            x = x + enc_skip
+            x = decoder(x)
+
+        x = self.ending(x)
+
+        # weight of SCM
+        weight = 1
+        x = x + weight * inp[:, 3:6, :, :]
+
+        return x[:, :, :H, :W]
 
