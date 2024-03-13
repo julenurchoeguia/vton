@@ -1,5 +1,5 @@
 import torch
-from vae_trainer import VAEConfig, VAETrainer
+from trainer.vae_trainer import VAEConfig, VAETrainer
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
