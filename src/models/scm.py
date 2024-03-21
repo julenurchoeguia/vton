@@ -16,212 +16,286 @@ Simple Baselines for Image Restoration
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from refiners.fluxion import layers as fl
+from refiners.fluxion.context import Contexts
+from src.models.architecture_utils import Dropout
+from torch.nn import PixelShuffle as _PixelShuffle
+from typing import Iterable, cast
 
-class LayerNormFunction(torch.autograd.Function):
+class PixelShuffle(_PixelShuffle, fl.Module):
+    """
+    Pixel Shuffle layer.
+    """
 
-    @staticmethod
-    def forward(ctx, x, weight, bias, eps):
-        ctx.eps = eps
-        N, C, H, W = x.size()
-        mu = x.mean(1, keepdim=True)
-        var = (x - mu).pow(2).mean(1, keepdim=True)
-        y = (x - mu) / (var + eps).sqrt()
-        ctx.save_for_backward(y, var, weight)
-        y = weight.view(1, C, 1, 1) * y + bias.view(1, C, 1, 1)
-        return y
+    def __init__(self, upscale_factor: int):
+        _PixelShuffle.__init__(self, upscale_factor=upscale_factor)
 
-    @staticmethod
-    def backward(ctx, grad_output):
-        eps = ctx.eps
+class SimpleGate(fl.Module):
+    """
+    Refiner's implementation of the SimpleGate from the original NAFNet paper.
+    """
+    def __init__(self) -> None:
+        super().__init__()
 
-        N, C, H, W = grad_output.size()
-        y, var, weight = ctx.saved_variables
-        g = grad_output * weight.view(1, C, 1, 1)
-        mean_g = g.mean(dim=1, keepdim=True)
-
-        mean_gy = (g * y).mean(dim=1, keepdim=True)
-        gx = 1. / torch.sqrt(var + eps) * (g - y * mean_gy - mean_g)
-        return gx, (grad_output * y).sum(dim=3).sum(dim=2).sum(dim=0), grad_output.sum(dim=3).sum(dim=2).sum(
-            dim=0), None
-
-class LayerNorm2d(nn.Module):
-
-    def __init__(self, channels, eps=1e-6):
-        super(LayerNorm2d, self).__init__()
-        self.register_parameter('weight', nn.Parameter(torch.ones(channels)))
-        self.register_parameter('bias', nn.Parameter(torch.zeros(channels)))
-        self.eps = eps
-
-    def forward(self, x):
-        return LayerNormFunction.apply(x, self.weight, self.bias, self.eps)
-
-class SimpleGate(nn.Module):
-    def forward(self, x):
+    def forward(self,x: torch.Tensor) -> torch.Tensor:
         x1, x2 = x.chunk(2, dim=1)
         return x1 * x2
 
-class NAFBlock(nn.Module):
-    def __init__(self, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
+class AdaptiveAvgPool2d(nn.AdaptiveAvgPool2d, fl.Module):
+    def __init__(self, output_size):
+        super().__init__(output_size)
+
+class ElementwiseMultiply(fl.Module):
+    """
+    ElementwiseMultiply is a simple elementwise multiplication layer.
+    """
+
+
+    def __init__(self) -> None:
         super().__init__()
-        dw_channel = c * DW_Expand
-        self.conv1 = nn.Conv2d(in_channels=c, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
-        self.conv2 = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=3, padding=1, stride=1, groups=dw_channel,
-                               bias=True)
-        self.conv3 = nn.Conv2d(in_channels=dw_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
-        
-        # Simplified Channel Attention
-        self.sca = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Conv2d(in_channels=dw_channel // 2, out_channels=dw_channel // 2, kernel_size=1, padding=0, stride=1,
-                      groups=1, bias=True),
+
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return x * y
+
+class SimplifiedChannelAttention(fl.Chain):
+    """
+    This is the refiners implementation of the Simplified Channel Attention from the original NAFNet paper.
+    """
+
+
+    def __init__(self,dw_channel) -> None:
+        super().__init__(
+            fl.Parallel(
+                fl.Chain(
+                    AdaptiveAvgPool2d(1),
+                    fl.Conv2d(in_channels=dw_channel // 2, out_channels=dw_channel // 2, kernel_size=1, padding=0, stride=1,
+                            groups=1, use_bias=True),
+                ),
+                fl.Identity()
+            ),
+            ElementwiseMultiply()
         )
 
-        # SimpleGate
-        self.sg = SimpleGate()
-
+class NAFBlock(fl.Chain):
+    """
+    This is the refiners implementation of the NAFBlock from the original NAFNet paper.
+    """
+    
+    def __init__(self, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
+        
+        dw_channel = c * DW_Expand
         ffn_channel = FFN_Expand * c
-        self.conv4 = nn.Conv2d(in_channels=c, out_channels=ffn_channel, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
-        self.conv5 = nn.Conv2d(in_channels=ffn_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
+        super().__init__(
+            fl.Residual(
+                fl.LayerNorm2d(c),
+                fl.Conv2d(in_channels=c, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
+                fl.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=3, padding=1, stride=1, groups=dw_channel,use_bias=True),
+                SimpleGate(),
+                SimplifiedChannelAttention(dw_channel),
+                fl.Conv2d(in_channels=dw_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
+                Dropout(probability=drop_out_rate),
+                fl.Parallel(
+                    fl.Parameter(c, 1, 1),
+                    fl.Identity(),
+                ),
+                ElementwiseMultiply(),
+            ),
+            fl.Residual(
+                fl.Conv2d(in_channels=c, out_channels=ffn_channel, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
+                SimpleGate(),
+                fl.Conv2d(in_channels=ffn_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
+                Dropout(probability=drop_out_rate),
+                fl.Parallel(
+                    fl.Parameter(c, 1, 1),
+                    fl.Identity(),
+                ),
+                ElementwiseMultiply(),
+            )
+        )
+        
+class NAFBlockEnc(fl.Chain):
+    """
+    NAFBlockEnc is a chain of NAFBlocks for the encoding part of the U-Net.
+    """
 
-        self.norm1 = LayerNorm2d(c)
-        self.norm2 = LayerNorm2d(c)
 
-        self.dropout1 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
-        self.dropout2 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
+    def __init__(self, nb_blocks, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
+        super().__init__(
+            *[
+                NAFBlock(c, DW_Expand, FFN_Expand, drop_out_rate) for _ in range(nb_blocks)
+            ]
+        )
 
-        self.beta = nn.Parameter(torch.zeros((1, c, 1, 1)), requires_grad=True)
-        self.gamma = nn.Parameter(torch.zeros((1, c, 1, 1)), requires_grad=True)
+class NAFBlockDec(fl.Chain):
+    """
+    NAFBlockDec is a chain of NAFBlocks for the decoding part of the U-Net.
+    """
 
-    def forward(self, inp):
-        x = inp
+    def __init__(self, nb_blocks, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
+        super().__init__(
+            *[
+                NAFBlock(c, DW_Expand, FFN_Expand, drop_out_rate) for _ in range(nb_blocks)
+            ]
+        )
 
-        x = self.norm1(x)
+class DownBlocks(fl.Chain):
+    """
+    DownBlocks is a chain of Encoding Blocks and Downsampling Blocks.
+    """
 
-        x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.sg(x)
-        x = x * self.sca(x)
-        x = self.conv3(x)
 
-        x = self.dropout1(x)
-
-        y = inp + x * self.beta
-
-        x = self.conv4(self.norm2(y))
-        x = self.sg(x)
-        x = self.conv5(x)
-
-        x = self.dropout2(x)
-
-        return y + x * self.gamma
-
-class NAFNet(nn.Module):
-
-    def __init__(self, img_channel=3, width=16, middle_blk_num=1, enc_blk_nums=[], dec_blk_nums=[]):
-        super().__init__()
-
-        self.intro = nn.Conv2d(in_channels=img_channel, out_channels=width, kernel_size=3, padding=1, stride=1, groups=1,
-                              bias=True)
-        self.ending = nn.Conv2d(in_channels=width, out_channels=3, kernel_size=3, padding=1, stride=1, groups=1,
-                              bias=True)
-
-        self.encoders = nn.ModuleList()
-        self.decoders = nn.ModuleList()
-        self.middle_blks = nn.ModuleList()
-        self.ups = nn.ModuleList()
-        self.downs = nn.ModuleList()
-
-        chan = width
-        for num in enc_blk_nums:
-            self.encoders.append(
-                nn.Sequential(
-                    *[NAFBlock(chan) for _ in range(num)]
+    def __init__(
+        self,
+        in_channels: int,
+        enc_blk_nums: Iterable[int] = [2, 2, 4, 8],
+    ):
+        self.in_channels_list = [in_channels * (2 ** i) for i in range(len(enc_blk_nums)+1)] 
+        super().__init__(
+            *[
+                fl.Chain(
+                    ## Encoding Blocks
+                    NAFBlockEnc(enc_blk_num, self.in_channels_list[index]),
+                    ## Downsampling Block
+                    fl.Conv2d(in_channels=self.in_channels_list[index], out_channels=self.in_channels_list[index+1], kernel_size=2, stride=2)
                 )
-            )
-            self.downs.append(
-                nn.Conv2d(chan, 2*chan, 2, 2)
-            )
-            chan = chan * 2
+                for index, enc_blk_num in enumerate(enc_blk_nums)
+            ]
+        )
 
-        self.middle_blks = \
-            nn.Sequential(
-                *[NAFBlock(chan) for _ in range(middle_blk_num)]
-            )
+class UpBlocks(fl.Chain):
+    """
+    UpBlocks is a chain of Upsampling Blocks and Decoding Blocks.
+    """
 
-        for num in dec_blk_nums:
-            self.ups.append(
-                nn.Sequential(
-                    nn.Conv2d(chan, chan * 2, 1, bias=False),
-                    nn.PixelShuffle(2)
+
+    def __init__(
+        self,
+        in_channels: int,
+        dec_blk_nums: Iterable[int] = [2, 2, 2, 2],
+    ) -> None:
+
+        self.in_channels_list = [in_channels // (2 ** i) for i in range(len(dec_blk_nums)+1)]
+        super().__init__(
+            *[
+                fl.Chain(
+                    ## Upsampling Block
+                    fl.Chain(
+                        fl.Conv2d(in_channels=self.in_channels_list[index], out_channels=self.in_channels_list[index+1]*4, kernel_size=1,use_bias=False),
+                        PixelShuffle(2)
+                    ),
+                    ## Decoding Blocks
+                    NAFBlockDec(dec_blk_num, self.in_channels_list[index+1])
                 )
+                for index, dec_blk_num in enumerate(dec_blk_nums)
+            ]
+        )
+
+class MiddleBlock(fl.Chain):
+    """
+    MiddleBlock is a simple chain of NAFBlocks.
+    """
+
+
+    def __init__(
+            self, 
+            in_channels: int ,
+            nb_middle_blocks: int = 1
+        ) -> None:
+        super().__init__(
+            *[
+                NAFBlock(in_channels) for _ in range(nb_middle_blocks)
+            ]
+        )
+
+class EncoderAccumulator(fl.Passthrough):
+    """
+    EncoderAccumulator is a simple accumulator that stores the output of the corresponding encoding block.
+    """
+
+    def __init__(self, n: int) -> None:
+        self.n = n
+        super().__init__(
+            fl.SetContext(context="unet", key="naf_block_encoders", callback=self.update),
+        )
+
+    def update(self, naf_block_encoder: list[torch.Tensor | float], x: torch.Tensor) -> None:
+        naf_block_encoder[self.n] = x
+
+class DecoderAdditionner(fl.Chain):
+    """
+    DecoderAdditionner is a simple skip connection that adds the output of the corresponding encoder 
+    to the output of the upsampling in the Decoder Block.
+    """
+
+    def __init__(self, n: int) -> None:
+        self.n = n
+
+        super().__init__(
+            fl.Sum(
+                fl.Identity(),
+                fl.UseContext(context="unet", key="naf_block_encoders").compose(lambda naf_block_encoder: naf_block_encoder[self.n]),
+            ),
+        )
+
+    def forward(self, *args: torch.Any) -> torch.Any:
+        return super().forward(*args)
+
+class NAFNet_UNet(fl.Chain):
+    """NAFNet U-Net.
+
+    This U-Net is based on the NAFNet architecture.
+    """
+
+    def __init__(
+        self, in_channels=16, middle_blk_num=12, enc_blk_nums=[2, 2, 4, 8], dec_blk_nums=[2, 2, 2, 2]
+    ) -> None:
+        """Initialize the U-Net.
+
+        Args:
+            in_channels (int): The number of input channels.
+            middle_blk_num (int): The number of middle blocks.
+            enc_blk_nums (Iterable[int]): The number of NAFBlocks per encoding block.
+            dec_blk_nums (Iterable[int]): The number of NAFBlocks per decoding block.
+        """
+        self.in_channels = in_channels
+        self.mid_channels = in_channels * (2 ** 4)
+        super().__init__(
+            DownBlocks(in_channels=self.in_channels, enc_blk_nums=enc_blk_nums),
+            MiddleBlock(in_channels=self.mid_channels, nb_middle_blocks=middle_blk_num),
+            UpBlocks(in_channels=self.mid_channels, dec_blk_nums=dec_blk_nums),
+        )
+
+        for n, block in enumerate(cast(Iterable[fl.Chain], self.DownBlocks)):
+            # Inject an accumulator after each encoding block.
+            block.insert(1, EncoderAccumulator(n))
+        for n, block in enumerate(cast(Iterable[fl.Chain], self.UpBlocks)):
+            # Inject an additioner before each decoding block.
+            block.insert(1, DecoderAdditionner(3-n))
+
+    def init_context(self) -> Contexts:
+        return {
+            "unet": {"naf_block_encoders": [0.0] * 4},
+        }
+    
+class SCM(fl.Sum):
+    def __init__(
+        self, img_channel=6, width=16, middle_blk_num=12, enc_blk_nums=[2, 2, 4, 8], dec_blk_nums=[2, 2, 2, 2], scm_weight=1.0
+    ) -> None:
+        super().__init__(
+            fl.Chain(
+                fl.Conv2d(in_channels=img_channel, out_channels=width, kernel_size=3, padding=1, stride=1, groups=1,use_bias=True),
+                NAFNet_UNet(in_channels=width, middle_blk_num=middle_blk_num, enc_blk_nums=enc_blk_nums, dec_blk_nums=dec_blk_nums),
+                fl.Conv2d(in_channels=width, out_channels=3, kernel_size=3, padding=1, stride=1, groups=1,use_bias=True),              
+            ),
+            fl.Chain(
+                fl.Slicing(dim=1, start=3, end=6),
+                fl.Multiply(scale = scm_weight),
             )
-            chan = chan // 2
-            self.decoders.append(
-                nn.Sequential(
-                    *[NAFBlock(chan) for _ in range(num)]
-                )
-            )
+        )
 
-        self.padder_size = 2 ** len(self.encoders)
 
-    def forward(self, inp):
-        B, C, H, W = inp.shape
-        inp = self.check_image_size(inp)
-
-        x = self.intro(inp)
-
-        encs = []
-
-        for encoder, down in zip(self.encoders, self.downs):
-            x = encoder(x)
-            encs.append(x)
-            x = down(x)
-
-        x = self.middle_blks(x)
-
-        for decoder, up, enc_skip in zip(self.decoders, self.ups, encs[::-1]):
-            x = up(x)
-            x = x + enc_skip
-            x = decoder(x)
-
-        x = self.ending(x)
-        x = x + inp
-
-        return x[:, :, :H, :W]
-
-    def check_image_size(self, x):
-        _, _, h, w = x.size()
-        mod_pad_h = (self.padder_size - h % self.padder_size) % self.padder_size
-        mod_pad_w = (self.padder_size - w % self.padder_size) % self.padder_size
-        x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h))
-        return x
-
-class NAFNet_Combine(NAFNet):
-    def forward(self, inp):
-        B, C, H, W = inp.shape
-        inp = self.check_image_size(inp)
-
-        x = self.intro(inp)
-
-        encs = []
-
-        for encoder, down in zip(self.encoders, self.downs):
-            x = encoder(x)
-            encs.append(x)
-            x = down(x)
-
-        x = self.middle_blks(x)
-
-        for decoder, up, enc_skip in zip(self.decoders, self.ups, encs[::-1]):
-            x = up(x)
-            x = x + enc_skip
-            x = decoder(x)
-
-        x = self.ending(x)
-
-        # weight of SCM
-        weight = 1
-        x = x + weight * inp[:, 3:6, :, :]
-
-        return x[:, :, :H, :W]
-
+if __name__ == "__main__":
+    model = SCM()
+    x = torch.randn(1, 6, 1024, 1024)
+    y = model(x)
+    print(y.shape)
