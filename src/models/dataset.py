@@ -6,10 +6,35 @@ import os
 from refiners.fluxion.utils import image_to_tensor, tensor_to_image
 import torchvision.transforms as transforms
 import torch
-import torchvision
+
+### Local imports ###
+import sys
+sys.path.append('../') # define relative path for local imports
+from image_dataset import Dataset
 
 
-def load_image(image_path: str) -> Image.Image:
+class SCMDataset(Dataset):
+    def __init__(self, path_person, path_cloth) -> None:
+        self.path_person = path_person
+        self.path_cloth = path_cloth
+        self.image_person = [f for f in os.listdir(path_person) if f.endswith(('.jpg', '.png', '.jpeg'))]
+        self.image_cloth = [f for f in os.listdir(path_cloth) if f.endswith(('.jpg', '.png', '.jpeg'))]
+
+    def __len__(self) -> int:
+        return len(self.image_person)
+    
+    def __str__(self) -> str:
+        return f'SCMDataset(len={len(self)})'
+
+    def __repr__(self) -> str:
+        return str(self)
+    
+    def __getitem__(self, key: int) -> torch.Tensor:
+        return self.concat_images(self.image_person[key], self.image_cloth[key])
+        pass
+
+    def load_image(self, file: str) -> Image.Image:
+        image_path = os.path.join(self.path, file)
         try:
             image = Image.open(image_path).convert("RGB")
             image = image_to_tensor(image).squeeze(0)
@@ -17,29 +42,14 @@ def load_image(image_path: str) -> Image.Image:
         except Exception as e:
             print(f"Error loading image '{file}': {e}")
             return None
-                
-def concatenate_dataset(path_dataset_model, path_dataset_cloth):
-    items = os.listdir(path_dataset_model)
-
-    transform = transforms.Compose([
-    transforms.Resize((512, 384))  # Resize to 512x384
-    ])
-
-    for item in items:
-        # get path of each image
-        item_path_result = os.path.join(path_dataset_model, item)
-        item_path_cloth = os.path.join(path_dataset_cloth, item)
-        # load the image
-        image_result = load_image(item_path_result)
-        image_cloth = load_image(item_path_cloth)
-        #resize the cloth image to image_result size (512x384)
+        
+    def concat_images(self, image_person, image_cloth)-> torch.Tensor:
+        transform = transforms.Compose([
+        transforms.Resize((512, 384))  # Resize to 512x384
+        ])
         resized_cloth = transform(image_cloth)
         #concatenate the two images for the NAFFNet_Combine model
-        concat_image = torch.cat((resized_cloth, image_result),0)
-        print(type(concat_image))
-        #save the concatenated image
-        save_path = os.path.join("/var/hub/VITON-HD-results-concatenated/paired/upper_body/", item)
+        concat_tensor = torch.cat((image_person, resized_cloth),0)
+        return concat_tensor
 
-        # torchvision.utils.save_image(concat_image, save_path)
-
-
+     
