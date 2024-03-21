@@ -1,6 +1,5 @@
 ### External imports ###
 from torch import Tensor
-from PIL import Image
 import os
 # from torch.utils.data import Dataset
 import json

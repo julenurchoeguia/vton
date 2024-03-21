@@ -19,29 +19,31 @@ from refiners.fluxion.utils import tensor_to_image
 from refiners.training_utils.config import BaseConfig
 
 ### Local imports ###
-from models.scm import NAFNet_Combine
+from models.scm import SCM
 from image_dataset import SCMBatch, ImageDataset
-from models.dataset import load_image
+from models.dataset import SCMDataset
 
 seed = 42
 seed_everything(seed)
 
 class SCMConfig(BaseConfig):
-    path_dataset_train : str
+    path_dataset_person_train : str
+    path_dataset_cloth_train : str
+
     path_dataset_test : str
     path_dataset_val : str
 
 class SCMTrainer(Trainer[SCMConfig, SCMBatch]):
 
     @cached_property # pour ne pas loader NAFNet_Combine à chaque fois
-    def scm(self):
-        return NAFNet_Combine().to(device=self.device)
+    def scm(self)   -> SCM:
+        return SCM().to(device=self.device)
 
     def load_models(self) -> dict[str, nn.Module]:
         return {"scm": self.scm}
 
-    def load_dataset(self):
-        dataset_train =  ImageDataset(self.config.path_dataset_train)
+    def load_dataset(self)  -> SCMDataset:
+        dataset_train =  SCMDataset(path_person = self.config.path_dataset_person_train, path_cloth=self.config.path_dataset_cloth_train)
         return dataset_train
     
     # def load_dataset_test(self):

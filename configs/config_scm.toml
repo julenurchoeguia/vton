@@ -1,6 +1,6 @@
 script = "scm_trainer.py" # not used for now
-path_dataset_train = "/var/hub/VITON-HD-results-ladi-vton/paired/upper_body"
-path_dataset_train_cloth = "/var/hub/VITON-HD/test/cloth/"
+path_dataset_person_train = "/var/hub/VITON-HD-results-ladi-vton/paired/upper_body"
+path_dataset_cloth_train = "/var/hub/VITON-HD/test/cloth/"
 
 # path_dataset_test = "/var/hub/datasets/zalando-hd-resized/test/image"
 # path_dataset_val = "/var/hub/datasets/zalando-hd-resized/val/image"
