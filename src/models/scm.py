@@ -292,7 +292,7 @@ class SCM(fl.Sum):
                 fl.Conv2d(in_channels=width, out_channels=3, kernel_size=3, padding=1, stride=1, groups=1,use_bias=True),              
             ),
             fl.Chain(
-                fl.Slicing(dim=1, start=3, end=6),
+                fl.Slicing(dim=1, start=3, length=6),
                 fl.Multiply(scale = scm_weight),
             )
         )
