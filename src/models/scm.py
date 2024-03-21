@@ -12,15 +12,19 @@ Simple Baselines for Image Restoration
   year={2022}
 }
 '''
-
+### External imports ###
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from refiners.fluxion import layers as fl
-from refiners.fluxion.context import Contexts
-from src.models.architecture_utils import Dropout
 from torch.nn import PixelShuffle as _PixelShuffle
 from typing import Iterable, cast
+
+### Refiner imports ###
+from refiners.fluxion import layers as fl
+from refiners.fluxion.context import Contexts
+
+### Local imports ###
+from models.architecture_utils import Dropout
 
 class PixelShuffle(_PixelShuffle, fl.Module):
     """
