@@ -2,11 +2,12 @@
 import torch
 
 ### Local import ###
-from trainer.vae_trainer import VAEConfig, VAETrainer
+from trainer.scm_trainer import SCMConfig, SCMTrainer
+
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-config = VAEConfig.load_from_toml("configs/config_vae.toml")
+config = SCMConfig.load_from_toml("configs/config_scm.toml")
 
-trainer = VAETrainer(config=config)
+trainer = SCMTrainer(config=config)
 trainer = trainer.train()
