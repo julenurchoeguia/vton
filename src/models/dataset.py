@@ -30,10 +30,16 @@ class SCMDataset(Dataset):
         return str(self)
     
     def __getitem__(self, key: int) -> torch.Tensor:
-        return self.concat_images(self.image_person[key], self.image_cloth[key])
-        pass
+        return self.concat_images(
+            self.load_image(self.image_person[key], 'person'), 
+            self.load_image(self.image_cloth[key], 'cloth')
+        ) # shape : torch.Size([6, 512, 384])
 
-    def load_image(self, file: str) -> Image.Image:
+    def load_image(self, file: str, path: str) -> Image.Image:
+        if path == 'person':
+            self.path = self.path_person
+        elif path == 'cloth':
+            self.path = self.path_cloth
         image_path = os.path.join(self.path, file)
         try:
             image = Image.open(image_path).convert("RGB")
