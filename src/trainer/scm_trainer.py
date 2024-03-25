@@ -20,6 +20,7 @@ from refiners.training_utils.config import BaseConfig
 
 ### Local imports ###
 from models.scm import SCM
+from models.scm_from_article import NAFNet_Combine
 from image_dataset import SCMBatch, ImageDataset
 from models.dataset import SCMDataset
 
@@ -36,8 +37,8 @@ class SCMConfig(BaseConfig):
 class SCMTrainer(Trainer[SCMConfig, SCMBatch]):
 
     @cached_property # pour ne pas loader NAFNet_Combine à chaque fois
-    def scm(self)   -> SCM:
-        return SCM().to(device=self.device)
+    def scm(self)   -> NAFNet_Combine:
+        return NAFNet_Combine().to(device=self.device)
 
     def load_models(self) -> dict[str, nn.Module]:
         return {"scm": self.scm}

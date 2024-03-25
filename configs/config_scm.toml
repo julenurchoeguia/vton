@@ -2,14 +2,14 @@ script = "scm_trainer.py" # not used for now
 path_dataset_person_train = "/var/hub/VITON-HD-results-ladi-vton/paired/upper_body"
 path_dataset_cloth_train = "/var/hub/VITON-HD/test/cloth/"
 
-# path_dataset_test = "/var/hub/datasets/zalando-hd-resized/test/image"
-# path_dataset_val = "/var/hub/datasets/zalando-hd-resized/val/image"
+path_dataset_test = "/var/hub/VITON-HD-results-ladi-vton-unpaired/unpaired/upper_body"
+path_dataset_val = "/var/hub/VITON-HD-results-ladi-vton-unpaired/unpaired/upper_body"
 
 [wandb]
 mode = "online"  # online : enregistrer le test sur wandb, offline : ne pas enregistrer le test sur wandb
 entity = "finegrain-cs"
 project = "vton_details_preservation"
-name = "scm_vton_20_epochs_test1"    
+name = "scm_vton_20_epochs_test1_scm_from_article"    
 
 [models]
 scm = {train = true} #{checkpoint="/home/laure/vton/notebooks/autoencodeur_models", train=true} #{train = true}
