@@ -46,10 +46,7 @@ class AutoEncoderBatch:
 class VAEBatch:
     image : Tensor
 
-@dataclass
-class SCMBatch:
-    image : Tensor
-            
+
 class ImageDataset(Dataset):
     def __init__(self, path) -> None:
         self.path = path

@@ -15,12 +15,13 @@ sys.path.append('../') # define relative path for local imports
 
 
 class SCMDataset:
-    def __init__(self, path_generated_images, path_garment_images, mode, high = 1024 , width = 768) -> None:
+    def __init__(self, path_generated_images, path_garment_images, mode, device, high = 1024 , width = 768) -> None:
         self.path_generated_images = path_generated_images
         self.path_garment_images = path_garment_images
         self.high = high
         self.width = width
         self.mode = mode
+        self.device = device
         path_to_get_files_list = self.path_generated_images + "/" + self.mode + "_files.txt"
         with open(path_to_get_files_list, 'r') as file:
             self.images_files = file.readlines()
@@ -53,15 +54,15 @@ class SCMDataset:
         target = model_mask * model_real
         return {
             "file_name":self.images_files[key], 
-            "model_mask": model_mask,
-            "cloth_mask": cloth_mask,
-            "model_generated": model_generated,
-            "cloth": cloth,
-            "model_real": model_real,
-            "input_cloth": input_cloth,
-            "input_model_generate": input_model_generate,
-            "input_scm": input_scm,
-            "target": target
+            "model_mask": model_mask.to(self.device),
+            "cloth_mask": cloth_mask.to(self.device),
+            "model_generated": model_generated.to(self.device),
+            "cloth": cloth.to(self.device),
+            "model_real": model_real.to(self.device),
+            "input_cloth": input_cloth.to(self.device),
+            "input_model_generate": input_model_generate.to(self.device),
+            "input_scm": input_scm.to(self.device),
+            "target": target.to(self.device)
         }
     def load_image(self, path: str) -> Image.Image:
         try:
