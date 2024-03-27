@@ -24,7 +24,7 @@ from refiners.fluxion import layers as fl
 from refiners.fluxion.context import Contexts
 
 ### Local imports ###
-from models.architecture_utils import Dropout
+from src.models.architecture_utils import Dropout
 
 class PixelShuffle(_PixelShuffle, fl.Module):
     """
@@ -292,14 +292,15 @@ class SCM(fl.Sum):
                 fl.Conv2d(in_channels=width, out_channels=3, kernel_size=3, padding=1, stride=1, groups=1,use_bias=True),              
             ),
             fl.Chain(
-                fl.Slicing(dim=1, start=3, length=6),
+                fl.Slicing(dim=1, start=3, end=6),
                 fl.Multiply(scale = scm_weight),
             )
         )
 
 
 if __name__ == "__main__":
-    model = SCM()
-    x = torch.randn(1, 6, 1024, 1024)
-    y = model(x)
-    print(y.shape)
+    pass
+    # model = SCM()
+    # x = torch.randn(1, 6, 1024, 1024)
+    # y = model(x)
+    # print(y.shape)
