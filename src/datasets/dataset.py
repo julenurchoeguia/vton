@@ -15,7 +15,7 @@ sys.path.append('../') # define relative path for local imports
 
 
 class SCMDataset:
-    def __init__(self, path_generated_images, path_garment_images, mode, device, high = 1024 , width = 768) -> None:
+    def __init__(self, path_generated_images, path_garment_images, mode, device = "cpu", high = 1024 , width = 768) -> None:
         self.path_generated_images = path_generated_images
         self.path_garment_images = path_garment_images
         self.high = high
@@ -31,6 +31,7 @@ class SCMDataset:
         self.original_images_files = [ path_garment_images + "/image/" + image_file for image_file in self.images_files]
         self.agnostic_mask_files = [ path_garment_images + "/agnostic-mask/" + image_file.replace(".jpg","_mask.png") for image_file in self.images_files]
         self.cloth_mask_files = [ path_garment_images + "/cloth-mask/" + image_file for image_file in self.images_files]
+        self.warped_cloth_files = [ path_generated_images + "/paired/warped_cloth/" + image_file for image_file in self.images_files]
         self.resize = transforms.Resize((self.high, self.width))
 
     def __len__(self) -> int:
@@ -48,9 +49,10 @@ class SCMDataset:
         model_generated = self.resize_image(self.load_image(self.generated_images_files[key]))
         cloth = self.resize_image(self.load_image(self.garment_images_files[key]))
         model_real = self.resize_image(self.load_image(self.original_images_files[key]))
+        warped_cloth = self.resize_image(self.load_image(self.warped_cloth_files[key]))
         input_cloth = cloth * cloth_mask
         input_model_generate = model_generated * model_mask
-        input_scm = torch.cat((input_cloth, input_model_generate), dim=0)
+        input_scm = torch.cat((warped_cloth, input_model_generate), dim=0)
         target = model_mask * model_real
         return {
             "file_name":self.images_files[key], 
@@ -60,6 +62,7 @@ class SCMDataset:
             "cloth": cloth.to(self.device),
             "model_real": model_real.to(self.device),
             "input_cloth": input_cloth.to(self.device),
+            "input_warped_cloth": warped_cloth.to(self.device), 
             "input_model_generate": input_model_generate.to(self.device),
             "input_scm": input_scm.to(self.device),
             "target": target.to(self.device)

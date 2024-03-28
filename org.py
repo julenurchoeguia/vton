@@ -1,7 +1,7 @@
 import os 
 
-path = "/var/hub/VITON-HD-results-ladi-vton/paired/upper_body"
-text_files_path = "/var/hub/VITON-HD-results-ladi-vton/"
+path = "/var/hub/VITON-HD-warped/paired/upper_body"
+text_files_path = "/var/hub/VITON-HD-warped/"
 
 list_of_files = os.listdir(path)
 
@@ -16,7 +16,7 @@ for i, file in enumerate(list_of_files):
         train_files.append(file)
 
 
-print(len(train_files), len(test_files), len(val_files))
+print(len(train_files), len(test_files), len(val_files), len(list_of_files))
 
 with open(text_files_path + "train_files.txt", "w") as f:
     for file in train_files:

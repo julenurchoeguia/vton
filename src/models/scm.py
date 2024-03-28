@@ -262,7 +262,7 @@ class NAFNet_UNet(fl.Chain):
             dec_blk_nums (Iterable[int]): The number of NAFBlocks per decoding block.
         """
         self.in_channels = in_channels
-        self.mid_channels = in_channels * (2 ** 4)
+        self.mid_channels = in_channels * (2 ** len(enc_blk_nums))
         super().__init__(
             DownBlocks(in_channels=self.in_channels, enc_blk_nums=enc_blk_nums),
             MiddleBlock(in_channels=self.mid_channels, nb_middle_blocks=middle_blk_num),
@@ -274,7 +274,7 @@ class NAFNet_UNet(fl.Chain):
             block.insert(1, EncoderAccumulator(n))
         for n, block in enumerate(cast(Iterable[fl.Chain], self.UpBlocks)):
             # Inject an additioner before each decoding block.
-            block.insert(1, DecoderAdditionner(3-n))
+            block.insert(1, DecoderAdditionner(len(enc_blk_nums)-1-n))
 
     def init_context(self) -> Contexts:
         return {
@@ -299,8 +299,9 @@ class SCM(fl.Sum):
 
 
 if __name__ == "__main__":
-    pass
-    # model = SCM()
+
+    model = SCM(img_channel=6, width=32, middle_blk_num=8, enc_blk_nums=[2, 4, 8], dec_blk_nums=[2, 2, 2])
     # x = torch.randn(1, 6, 1024, 1024)
     # y = model(x)
     # print(y.shape)
+    print(model.__repr__())
