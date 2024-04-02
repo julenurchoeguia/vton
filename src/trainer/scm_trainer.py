@@ -33,6 +33,8 @@ class SCMBatch:
     model_generated : Tensor
     cloth : Tensor
     model_real: Tensor
+    model_real_noisy : Tensor
+    parse_v3: Tensor
     input_cloth: Tensor
     input_warped_cloth : Tensor
     input_model_generate: Tensor
@@ -103,6 +105,8 @@ class SCMTrainer(Trainer[SCMConfig, SCMBatch]):
             model_generated = torch.stack([item.model_generated for item in batch]),
             cloth = torch.stack([item.cloth for item in batch]),
             model_real = torch.stack([item.model_real for item in batch]),
+            model_real_noisy = torch.stack([item.model_real_noisy for item in batch]),
+            parse_v3 = torch.stack([item.parse_v3 for item in batch]),
             input_cloth = torch.stack([item.input_cloth for item in batch]),
             input_warped_cloth = torch.stack([item.input_warped_cloth for item in batch]),
             input_model_generate = torch.stack([item.input_model_generate for item in batch]),
@@ -165,16 +169,18 @@ class SCMTrainer(Trainer[SCMConfig, SCMBatch]):
             loss = mse_loss(prediction,element["target"].unsqueeze(0))
             loss_val += loss
         
-            if k < 20:
-                model_real = element["model_real"].unsqueeze(0)
-                cloth = element["input_warped_cloth"].unsqueeze(0)
+            if k < 25:
+                final_target = element["model_real"].unsqueeze(0)
+                context_input = element["input_warped_cloth"].unsqueeze(0)
                 model_generated = element["model_generated"].unsqueeze(0)
-                image_shape = model_real.shape
+                mask = element["model_mask"].unsqueeze(0)
+                final_prediction = prediction * mask + model_generated * (1 - mask)
+                image_shape = final_target.shape
                 concat = Image.new('RGB', (image_shape[-1]*2, image_shape[-2]*2))
-                concat.paste(tensor_to_image(cloth), (0, 0))
-                concat.paste(tensor_to_image(prediction), (image_shape[-1], 0))
+                concat.paste(tensor_to_image(context_input), (0, 0))
+                concat.paste(tensor_to_image(final_prediction), (image_shape[-1], 0))
                 concat.paste(tensor_to_image(model_generated), (0, image_shape[-2]))
-                concat.paste(tensor_to_image(model_real), (image_shape[-1], image_shape[-2]))
+                concat.paste(tensor_to_image(final_target), (image_shape[-1], image_shape[-2]))
                 log_images.append(concat)
         
         images = [Image.fromarray(np.array(image)) for image in log_images]
