@@ -105,6 +105,7 @@ class NAFBlock(fl.Chain):
                 ElementwiseMultiply(),
             ),
             fl.Residual(
+                fl.LayerNorm2d(c),
                 fl.Conv2d(in_channels=c, out_channels=ffn_channel, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
                 SimpleGate(),
                 fl.Conv2d(in_channels=ffn_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, use_bias=True),
