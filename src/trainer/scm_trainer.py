@@ -133,14 +133,14 @@ class SCMTrainer(Trainer[SCMConfig, SCMBatch]):
         target = batch.target
         input_scm = batch.input_scm
         prediction = self.scm(input_scm)
-        loss = mse_loss(prediction,target)
+        loss = torch.norm(prediction - target) 
         self.log({"learning_loss": loss, "iteration": self.clock.iteration, "learning_rate": self.lr_scheduler.get_last_lr()[0]})
         return loss
     
     def compute_reference_loss(self):
         loss_val = 0
         for k, element in enumerate(self.val_dataset):
-            loss = mse_loss(element["input_model_generate"].unsqueeze(0),element["target"].unsqueeze(0))
+            loss = torch.norm(element["input_model_generate"].unsqueeze(0) - element["target"].unsqueeze(0))
             loss_val += loss
 
         self.reference_loss = loss_val / len(self.val_dataset)
@@ -166,7 +166,7 @@ class SCMTrainer(Trainer[SCMConfig, SCMBatch]):
             input_scm = element["input_scm"].unsqueeze(0)
             input_scm = input_scm.to(device=self.device)
             prediction = self.scm(input_scm)
-            loss = mse_loss(prediction,element["target"].unsqueeze(0))
+            loss = torch.norm(prediction - element["target"].unsqueeze(0))
             loss_val += loss
         
             if k < 25:
