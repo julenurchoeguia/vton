@@ -1,14 +1,14 @@
 ### Local imports ###
 
 import json
-from src.models.scm import SCM
-from src.models.scm_from_article import NAFNet_Combine
+from scm.src.scm import SCM
+from scm.src.scm_from_article import NAFNet_Combine
 import torch
 
 scm_model = SCM(img_channel=6, width=8, middle_blk_num=2, enc_blk_nums=[2, 4], dec_blk_nums=[2, 2])
 scm_reference = NAFNet_Combine(img_channel=6, width=8, middle_blk_num=2, enc_blk_nums=[2, 4], dec_blk_nums=[2, 2])
 
-with open('scripts/mapping_dict.json') as f:
+with open('scm/scripts/mapping_dict.json') as f:
     mapping_dict = json.load(f)
 
 state_dict = scm_model.state_dict()

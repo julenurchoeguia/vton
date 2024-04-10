@@ -18,8 +18,8 @@ from refiners.training_utils.common import seed_everything, TimeValue
 from refiners.training_utils.wandb import WandbLogger,WandbLoggable
 
 ### Local imports ###
-from src.models.scm import SCM
-from src.datasets.dataset import SCMDataset
+from scm.src.scm import SCM
+from scm.src.dataset import SCMDataset
 
 seed = 42
 seed_everything(seed)
@@ -171,7 +171,7 @@ class SCMTrainer(Trainer[SCMConfig, SCMBatch]):
         
             if k < 25:
                 final_target = element["model_real"].unsqueeze(0)
-                context_input = element["input_warped_cloth"].unsqueeze(0)
+                context_input = element["model_real_noisy"].unsqueeze(0)
                 model_generated = element["model_generated"].unsqueeze(0)
                 mask = element["model_mask"].unsqueeze(0)
                 final_prediction = prediction * mask + model_generated * (1 - mask)

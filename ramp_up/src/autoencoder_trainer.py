@@ -16,7 +16,7 @@ from refiners.training_utils.config import BaseConfig
 
 ### Local imports ###
 from ramp_up.src.autoencoder import AutoEncoder
-from src.datasets.image_dataset import  ImageDataset
+from common_utils.image_dataset import ImageDataset
 from dataclasses import dataclass
 
 

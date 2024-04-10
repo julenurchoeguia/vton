@@ -19,8 +19,8 @@ from refiners.training_utils.common import seed_everything, TimeValue
 from refiners.training_utils.wandb import WandbLogger,WandbLoggable
 
 ### Local imports ###
-from src.models.scm import SCM
-from src.datasets.dataset import SCMDataset
+from scm.src.scm import SCM
+from scm.src.dataset import SCMDataset
 
 seed = 42
 seed_everything(seed)

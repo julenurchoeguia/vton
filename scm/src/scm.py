@@ -23,8 +23,10 @@ from typing import Iterable, cast
 from refiners.fluxion import layers as fl
 from refiners.fluxion.context import Contexts
 
-### Local imports ###
-from src.models.architecture_utils import Dropout
+
+class Dropout(nn.Dropout, fl.Module):
+    def __init__(self, probability: float = 0.5, inplace: bool = False) -> None:
+        super().__init__(p=probability, inplace=inplace)
 
 class PixelShuffle(_PixelShuffle, fl.Module):
     """

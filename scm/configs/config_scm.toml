@@ -22,7 +22,7 @@ update_interval = "1:iteration"
 mode = "online"  # online : enregistrer le test sur wandb, offline : ne pas enregistrer le test sur wandb
 entity = "finegrain-cs"
 project = "vton_details_preservation"
-name = "spicy_pluton"  
+name = "warped_from_gt_gaussian_blur"  
 
 [scm]
 img_channel=6

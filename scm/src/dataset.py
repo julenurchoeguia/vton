@@ -3,11 +3,9 @@ from PIL import Image
 import os
 
 ### Refiner imports ###
-from refiners.fluxion.utils import image_to_tensor, tensor_to_image
+from refiners.fluxion.utils import image_to_tensor
 import torchvision.transforms as transforms
 import torch
-
-### Local imports ###
 import sys
 sys.path.append('../') # define relative path for local imports
 import tqdm
@@ -83,8 +81,9 @@ class SCMDataset:
         parse_v3 = self.resize_image(self.load_image(self.images_parse_v3_files[key]))
         new_model_mask = self.mask_orange_color(parse_v3)
         input_cloth = cloth * cloth_mask
+        model_real_noisy = model_real_noisy * new_model_mask
         input_model_generate = model_generated * new_model_mask
-        input_scm = torch.cat((warped_cloth, input_model_generate), dim=0)
+        input_scm = torch.cat((model_real_noisy, input_model_generate), dim=0)
         target = model_real * new_model_mask
         return {
             "file_name":self.images_files[key], 
