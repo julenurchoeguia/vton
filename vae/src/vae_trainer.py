@@ -15,7 +15,7 @@ from refiners.fluxion.utils import tensor_to_image
 from refiners.training_utils.config import BaseConfig
 
 ### Local imports ###
-from models.vae import VAE
+from vae.src.vae import VAE
 from src.datasets.image_dataset import ImageDataset
 from dataclasses import dataclass
 import math
