@@ -3,7 +3,7 @@ path_garment_images = "/var/hub/VITON-HD/test"
 saving_path = "/home/daniel/work/vton/models"
 
 [training]
-duration = "40:epoch"
+duration = "20:epoch"
 batch_size = 1
 seed = 42
 gradient_accumulation = "1:step"
@@ -22,7 +22,7 @@ update_interval = "1:iteration"
 mode = "online"  # online : enregistrer le test sur wandb, offline : ne pas enregistrer le test sur wandb
 entity = "finegrain-cs"
 project = "vton_details_preservation"
-name = "warped_from_gt_gaussian_blur"  
+name = "original_garment_image"  
 
 [scm]
 img_channel=6

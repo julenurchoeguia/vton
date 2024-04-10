@@ -171,7 +171,7 @@ class SCMTrainer(Trainer[SCMConfig, SCMBatch]):
         
             if k < 25:
                 final_target = element["model_real"].unsqueeze(0)
-                context_input = element["model_real_noisy"].unsqueeze(0)
+                context_input = element["input_cloth"].unsqueeze(0)
                 model_generated = element["model_generated"].unsqueeze(0)
                 mask = element["model_mask"].unsqueeze(0)
                 final_prediction = prediction * mask + model_generated * (1 - mask)
