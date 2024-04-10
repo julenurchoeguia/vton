@@ -3,24 +3,30 @@ from functools import cached_property
 from torch import Tensor
 from PIL import Image
 import numpy as np
-import PIL
 import torch
 import time
 from torch.nn.functional import mse_loss
 
 ### Refiner imports ###
 from refiners.fluxion import layers as fl
-from refiners.training_utils.trainer import (
-    Trainer,
-    seed_everything
-)
+from refiners.training_utils.trainer import Trainer
+from refiners.training_utils.common import seed_everything
 from refiners.fluxion.utils import tensor_to_image
 from refiners.training_utils.config import BaseConfig
 
 ### Local imports ###
-from models.autoencoder import AutoEncoder
-from image_dataset import AutoEncoderBatch, ImageDataset
+from ramp_up.src.autoencoder import AutoEncoder
+from common_utils.image_dataset import ImageDataset
 from dataclasses import dataclass
+
+
+    
+@dataclass
+class AutoEncoderBatch:
+    image : Tensor
+
+
+
 
 seed = 42
 seed_everything(seed)
@@ -76,7 +82,7 @@ class AutoEncoderTrainer(Trainer[AutoEncoderConfig, AutoEncoderBatch]):
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         torch.save(self.autoencoder.state_dict(), str(self.config.checkpointing.save_folder) + "/"+ str(self.config.wandb.project) + "/" + str(self.config.wandb.name)  + f"/ae_{timestamp}.pt")
         
-        images = [PIL.Image.fromarray(np.array(image)) for image in reconstructed_images]
+        images = [Image.fromarray(np.array(image)) for image in reconstructed_images]
         # print(len(images))
         i = 0
         for image in images:

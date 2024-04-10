@@ -1,0 +1,32 @@
+path_generated_images = "/var/hub/VITON-HD-warped"
+path_garment_images = "/var/hub/VITON-HD/test"
+saving_path = "/home/daniel/work/vton/models"
+
+[training]
+duration = "20:epoch"
+batch_size = 1
+seed = 42
+gradient_accumulation = "1:step"
+evaluation_interval = "1:epoch"
+evaluation_seed = 42
+
+[optimizer]
+optimizer = "Adam" # "AdamW", "AdamW8bit", "Lion8bit", "Prodigy", "SGD", "Adam"
+learning_rate = 1e-5
+
+[lr_scheduler]
+type = "ConstantLR"
+update_interval = "1:iteration"
+
+[wandb]
+mode = "online"  # online : enregistrer le test sur wandb, offline : ne pas enregistrer le test sur wandb
+entity = "finegrain-cs"
+project = "vton_details_preservation"
+name = "original_garment_image"  
+
+[scm]
+img_channel=6
+width=16
+middle_blk_num=12
+enc_blk_nums=[2, 2, 4, 8]
+dec_blk_nums=[2,2, 2, 2]

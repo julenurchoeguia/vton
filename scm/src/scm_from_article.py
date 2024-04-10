@@ -1,18 +1,3 @@
-# ------------------------------------------------------------------------
-# Copyright (c) 2022 megvii-model. All Rights Reserved.
-# ------------------------------------------------------------------------
-
-'''
-Simple Baselines for Image Restoration
-
-@article{chen2022simple,
-  title={Simple Baselines for Image Restoration},
-  author={Chen, Liangyu and Chu, Xiaojie and Zhang, Xiangyu and Sun, Jian},
-  journal={arXiv preprint arXiv:2204.04676},
-  year={2022}
-}
-'''
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -59,7 +44,7 @@ class SimpleGate(nn.Module):
     def forward(self, x):
         x1, x2 = x.chunk(2, dim=1)
         return x1 * x2
-
+    
 class NAFBlock(nn.Module):
     def __init__(self, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
         super().__init__()
@@ -68,7 +53,7 @@ class NAFBlock(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=3, padding=1, stride=1, groups=dw_channel,
                                bias=True)
         self.conv3 = nn.Conv2d(in_channels=dw_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
-        
+
         # Simplified Channel Attention
         self.sca = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
@@ -94,7 +79,6 @@ class NAFBlock(nn.Module):
 
     def forward(self, inp):
         x = inp
-
         x = self.norm1(x)
 
         x = self.conv1(x)
@@ -147,7 +131,6 @@ class NAFNet(nn.Module):
             nn.Sequential(
                 *[NAFBlock(chan) for _ in range(middle_blk_num)]
             )
-
         for num in dec_blk_nums:
             self.ups.append(
                 nn.Sequential(
@@ -161,7 +144,6 @@ class NAFNet(nn.Module):
                     *[NAFBlock(chan) for _ in range(num)]
                 )
             )
-
         self.padder_size = 2 ** len(self.encoders)
 
     def forward(self, inp):
@@ -176,9 +158,7 @@ class NAFNet(nn.Module):
             x = encoder(x)
             encs.append(x)
             x = down(x)
-
         x = self.middle_blks(x)
-
         for decoder, up, enc_skip in zip(self.decoders, self.ups, encs[::-1]):
             x = up(x)
             x = x + enc_skip
@@ -186,8 +166,8 @@ class NAFNet(nn.Module):
 
         x = self.ending(x)
         x = x + inp
-
         return x[:, :, :H, :W]
+
 
     def check_image_size(self, x):
         _, _, h, w = x.size()
@@ -195,16 +175,13 @@ class NAFNet(nn.Module):
         mod_pad_w = (self.padder_size - w % self.padder_size) % self.padder_size
         x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h))
         return x
-
+    
 class NAFNet_Combine(NAFNet):
     def forward(self, inp):
         B, C, H, W = inp.shape
         inp = self.check_image_size(inp)
-
         x = self.intro(inp)
-
         encs = []
-
         for encoder, down in zip(self.encoders, self.downs):
             x = encoder(x)
             encs.append(x)
@@ -224,4 +201,3 @@ class NAFNet_Combine(NAFNet):
         x = x + weight * inp[:, 3:6, :, :]
 
         return x[:, :, :H, :W]
-

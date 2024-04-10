@@ -3,24 +3,26 @@ from functools import cached_property
 from torch import Tensor
 from PIL import Image
 import numpy as np
-import PIL
 import torch
 import time
 from torch.nn.functional import mse_loss
 
 ### Refiner imports ###
 from refiners.fluxion import layers as fl
-from refiners.training_utils.trainer import (
-    Trainer,
-    seed_everything
-)
+from refiners.training_utils.trainer import Trainer
+from refiners.training_utils.common import seed_everything
 from refiners.fluxion.utils import tensor_to_image
 from refiners.training_utils.config import BaseConfig
 
 ### Local imports ###
-from models.vae import VAE
-from image_dataset import VAEBatch, ImageDataset
+from vae.src.vae import VAE
+from common_utils.image_dataset import ImageDataset
+from dataclasses import dataclass
 import math
+
+@dataclass
+class VAEBatch:
+    image : Tensor
 
 seed = 42
 seed_everything(seed)
@@ -151,7 +153,7 @@ class VAETrainer(Trainer[VAEConfig, VAEBatch]):
         
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         torch.save(self.vae.state_dict(), str(self.config.checkpointing.save_folder) + "/"+ str(self.config.wandb.project) + "/" + str(self.config.wandb.name)  + f"/vae_{timestamp}.pt")
-        images = [PIL.Image.fromarray(np.array(image)) for image in reconstructed_images]
+        images = [Image.fromarray(np.array(image)) for image in reconstructed_images]
         # print(len(images))
         i = 0
         for image in images:

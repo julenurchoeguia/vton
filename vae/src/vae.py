@@ -3,7 +3,7 @@ import torch
 ### Refiner imports ###
 from refiners.fluxion import layers as fl
 ### Local imports ###
-from models.architecture_utils import (
+from ramp_up.src.autoencoder import (
     Encoder,
     Decoder
 )
