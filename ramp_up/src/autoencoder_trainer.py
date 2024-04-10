@@ -15,7 +15,7 @@ from refiners.fluxion.utils import tensor_to_image
 from refiners.training_utils.config import BaseConfig
 
 ### Local imports ###
-from models.autoencoder import AutoEncoder
+from ramp_up.src.autoencoder import AutoEncoder
 from src.datasets.image_dataset import  ImageDataset
 from dataclasses import dataclass
 
