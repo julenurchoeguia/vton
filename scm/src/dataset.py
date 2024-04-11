@@ -83,7 +83,7 @@ class SCMDataset:
         input_cloth = cloth * cloth_mask
         model_real_noisy = model_real_noisy * new_model_mask
         input_model_generate = model_generated * new_model_mask
-        input_scm = torch.cat((input_cloth, input_model_generate), dim=0)
+        input_scm = torch.cat((warped_cloth, input_model_generate), dim=0)
         target = model_real * new_model_mask
         return {
             "file_name":self.images_files[key], 
